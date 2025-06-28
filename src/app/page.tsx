@@ -1,3 +1,4 @@
+"use client";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -17,51 +18,61 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Search } from "lucide-react";
+import Link from "next/link";
+
+// Добавляем объявление для window.ethereum
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}
 
 export default function Home() {
   return (
-    <div className="container mx-auto p-4 lg:max-w-screen-lg">
-      <header className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">VeriDoc</h1>
-        <div className="flex items-center space-x-2">
-          <Button>Connect Wallet</Button>
-        </div>
-      </header>
-
+    <>
       <section className="flex flex-col md:flex-row justify-center space-y-4 md:space-y-0 md:space-x-4 mb-8">
         <Card className="w-full ">
           <CardHeader>
-            <CardTitle>Создать документ</CardTitle>
+            <CardTitle>Create a new document</CardTitle>
             <CardDescription>
-              Загрузите новый документ для верификации и подписи.
+              Upload a PDF and specify the addresses of the signers.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full">Create document</Button>
+            <Button asChild className="w-full">
+              <Link href="/new">Create document</Link>
+            </Button>
           </CardContent>
         </Card>
 
         <Card className="w-full ">
           <CardHeader>
-            <CardTitle>Проверить документ</CardTitle>
+            <CardTitle>Verify a document</CardTitle>
             <CardDescription>
-              Проверьте существующий документ по его хэшу или ID.
+              Check an existing document by its hash or ID.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full">Verify Document</Button>
+            <Button asChild className="w-full">
+              <Link href="/verify">Verify document</Link>
+            </Button>
           </CardContent>
         </Card>
       </section>
 
-      <section className="flex items-center space-x-2 mb-8">
-        <Input type="text" placeholder="Search for..." className="flex-grow" />
-        <Button variant="ghost" size="icon">
-          <Search className="h-4 w-4" />
-        </Button>
-      </section>
-
       <section>
+        <h1 className="mb-8 tracking-tight text-xl">Your documents</h1>
+        <div className="flex items-center space-x-2">
+          <Input
+            type="text"
+            placeholder="Search for..."
+            className="flex-grow"
+          />
+          <Button variant="ghost" size="icon">
+            <Search className="h-4 w-4" />
+          </Button>
+        </div>
+
         <Table>
           <TableCaption>A list of your documents.</TableCaption>
           <TableHeader>
@@ -91,6 +102,6 @@ export default function Home() {
           </TableBody>
         </Table>
       </section>
-    </div>
+    </>
   );
 }
