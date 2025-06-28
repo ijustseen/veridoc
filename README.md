@@ -1,36 +1,21 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# VeriDoc
 
-## Getting Started
+Проект на базе ETH нацеленный на хранение и валидацию документов, с возможностью мультиподписей, сверкой документа на соответствие hash файла с исходным. Разделение на private и public документы, а также разные виды доступа к файлу (только*чтение, разрешение*на*подпись*и_чтение)
 
-First, run the development server:
+## Изюм в проекте:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Отложенное расшифрование файла / передача прав на документ;
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Стек технологий:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+L2 (Polygon PoS), ether.js, SupaBase (в перспективе S3), Next.js ...
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Логика работы Сервиса:
 
-## Learn More
+1 - Один из пользователей создает документ. Он загружает его в PDF формате, генерирует абсолютно случайный ключ и по нему шифрует документ. Затем - сам этот ключ шифруется исходя из Private Key кошелька пользователя.
+2 - Владелец документа выбирает всех остальных пользователей, которые должны подписать этот документ. Для этого он указывает их адреса кошельков и им отправляется запрос на подпись, а так же ключ, зашифрованн
+ый посредстом public key пользователя, которому отправляется запрос.
+3 - Пользователь получающий запрос, расшифровывает получений ключ при помощи своего Private Key, благодаря чему может прочитать документ, который ожидает подписи.
+4 - Если пользователь согласен подписать документ, то он создает новый зашифрованый ключ (уже исходя из его Private Key), синхронизирует его (необходимо чтобы блокчейн знал, какой ключ пренадлежит какому пользователю, при этом расшифровать этот ключ сможет только пользователь из списка подписавгих при помощи относящегося к нему ключу и его Private Key) и подписывает документ.
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+В итоге мы получаем зашифрованый документ, хэш этого документа подписаный несколькими (или одним) пользователями, список подписавших кошельков и относящихся к ним зашифрованых ключей.
