@@ -1,0 +1,71 @@
+# Зависимости для Remix IDE
+
+## OpenZeppelin Contracts
+
+Для корректной работы контрактов в Remix IDE необходимо добавить следующие зависимости:
+
+### 1. AccessControl
+```
+@openzeppelin/contracts/access/AccessControl.sol
+```
+
+### 2. Security
+```
+@openzeppelin/contracts/security/ReentrancyGuard.sol
+@openzeppelin/contracts/security/Pausable.sol
+```
+
+### 3. Utils
+```
+@openzeppelin/contracts/utils/Counters.sol
+```
+
+## Как добавить зависимости в Remix
+
+### Способ 1: Через Package Manager
+1. Откройте вкладку **Package Manager** в Remix
+2. Найдите "OpenZeppelin"
+3. Установите последнюю версию
+
+### Способ 2: Ручное добавление
+1. Создайте папку `@openzeppelin/contracts/` в вашем проекте
+2. Скопируйте необходимые файлы из репозитория OpenZeppelin
+
+### Способ 3: Через GitHub
+1. Перейдите в **File Explorer**
+2. Нажмите **Import from GitHub**
+3. Введите: `OpenZeppelin/openzeppelin-contracts`
+4. Выберите нужные файлы
+
+## Структура зависимостей
+
+```
+@openzeppelin/
+└── contracts/
+    ├── access/
+    │   └── AccessControl.sol
+    ├── security/
+    │   ├── ReentrancyGuard.sol
+    │   └── Pausable.sol
+    └── utils/
+        └── Counters.sol
+```
+
+## Версии
+
+Рекомендуемые версии:
+- Solidity: ^0.8.20
+- OpenZeppelin: ^5.0.0
+
+## Проверка установки
+
+После установки зависимостей убедитесь, что:
+1. Все импорты в контрактах работают
+2. Компиляция проходит без ошибок
+3. Тесты запускаются корректно
+
+## Альтернативные источники
+
+Если возникают проблемы с Package Manager:
+- [OpenZeppelin GitHub](https://github.com/OpenZeppelin/openzeppelin-contracts)
+- [OpenZeppelin Documentation](https://docs.openzeppelin.com/contracts/) 
