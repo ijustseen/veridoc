@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useRouter } from "next/navigation";
 
-export default function NewDocumentPage() {
+export default function CreateDocumentPage() {
   const { account } = useWallet();
   const [file, setFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState("");
@@ -58,7 +58,7 @@ export default function NewDocumentPage() {
     }
     // TODO: handle document creation
     setTimeout(() => {
-      router.push("/verify");
+      router.push("/dashboard");
     }, 2000);
   };
 
@@ -69,7 +69,7 @@ export default function NewDocumentPage() {
       setPendingSubmit(null);
 
       setTimeout(() => {}, 2000);
-      router.push("/verify");
+      router.push("/dashboard");
     }
   };
 
