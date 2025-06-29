@@ -43,6 +43,19 @@ interface InvitationWithDocument extends Invitation {
   documents: Document;
 }
 
+// Типы для user_pkps
+export type UserPKP = {
+  id: number;
+  wallet_address: string;
+  token_id: string;
+  created_at: string;
+};
+
+export type CreateUserPKPInput = {
+  wallet_address: string;
+  token_id: string;
+};
+
 class DocumentInvitationORM {
   private supabase: SupabaseClient;
 
@@ -244,6 +257,66 @@ class DocumentInvitationORM {
       return null;
     }
   }
+
+  // --- USER_PKPS METHODS ---
+
+  // Получить одну запись user_pkps по wallet_address
+  async getUserPKPByWalletAddress(walletAddress: string): Promise<UserPKP | null> {
+    try {
+      const { data, error } = await this.supabase
+        .from('user_pkps')
+        .select('*')
+        .eq('wallet_address', walletAddress)
+        .single();
+      if (error) {
+        if (error.code !== 'PGRST116') { // not found is not an error
+          console.error('Ошибка получения user_pkps по wallet_address:', error);
+        }
+        return null;
+      }
+      return data as UserPKP;
+    } catch (error) {
+      console.error('Неожиданная ошибка при получении user_pkps по wallet_address:', error);
+      return null;
+    }
+  }
+
+  // Получить все записи user_pkps по wallet_address (на случай, если их несколько)
+  async getAllUserPKPsByWalletAddress(walletAddress: string): Promise<UserPKP[]> {
+    try {
+      const { data, error } = await this.supabase
+        .from('user_pkps')
+        .select('*')
+        .eq('wallet_address', walletAddress);
+      if (error) {
+        console.error('Ошибка получения всех user_pkps по wallet_address:', error);
+        return [];
+      }
+      return data as UserPKP[];
+    } catch (error) {
+      console.error('Неожиданная ошибка при получении всех user_pkps по wallet_address:', error);
+      return [];
+    }
+  }
+
+  // Создать новую запись user_pkps
+  async createUserPKP(data: CreateUserPKPInput): Promise<UserPKP | null> {
+    try {
+      const { data: inserted, error } = await this.supabase
+        .from('user_pkps')
+        .insert([data])
+        .select()
+        .single();
+      if (error) {
+        console.error('Ошибка создания user_pkps:', error);
+        return null;
+      }
+      return inserted as UserPKP;
+    } catch (error) {
+      console.error('Неожиданная ошибка при создании user_pkps:', error);
+      return null;
+    }
+  }
 }
 
 // Пример использования
@@ -299,4 +372,4 @@ export async function example() {
   }
 }
 
-export { DocumentInvitationORM, type Invitation, type Document, type CreateInvitationInput, type CreateDocumentInput, type InvitationWithDocument };
+export { DocumentInvitationORM, type Invitation, type Document, type CreateInvitationInput, type CreateDocumentInput, type InvitationWithDocument, type UserPKP, type CreateUserPKPInput };
