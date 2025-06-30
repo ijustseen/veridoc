@@ -3,6 +3,11 @@ import { Github, Mail, Linkedin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import React from "react";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 
 export default function Footer() {
   return (
@@ -11,10 +16,9 @@ export default function Footer() {
       <div className="flex items-center gap-4">
         <Button asChild variant="ghost" size="icon">
           <Link
-            href="https://github.com/your-repo-link"
+            href="https://github.com/ijustseen/veridoc"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="GitHub"
           >
             <Github className="h-5 w-5" />
           </Link>
@@ -24,51 +28,54 @@ export default function Footer() {
             <Mail className="h-5 w-5" />
           </Link>
         </Button>
-        <Button
-          asChild
-          variant="ghost"
-          size="icon"
-          title="LinkedIn of Person 1"
-        >
-          <Link
-            href="https://linkedin.com/in/person1"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="LinkedIn Person 1"
-          >
-            <Linkedin className="h-5 w-5" />
-          </Link>
-        </Button>
-        <Button
-          asChild
-          variant="ghost"
-          size="icon"
-          title="LinkedIn of Person 2"
-        >
-          <Link
-            href="https://linkedin.com/in/person2"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="LinkedIn Person 2"
-          >
-            <Linkedin className="h-5 w-5" />
-          </Link>
-        </Button>
-        <Button
-          asChild
-          variant="ghost"
-          size="icon"
-          title="LinkedIn of Person 3"
-        >
-          <Link
-            href="https://linkedin.com/in/person3"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="LinkedIn Person 3"
-          >
-            <Linkedin className="h-5 w-5" />
-          </Link>
-        </Button>
+        <HoverCard>
+          <HoverCardTrigger asChild>
+            <Button asChild variant="ghost" size="icon">
+              <Link
+                href="https://linkedin.com/in/ruslan-khairullin-3a47282a8"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Linkedin className="h-5 w-5" />
+              </Link>
+            </Button>
+          </HoverCardTrigger>
+          <HoverCardContent>
+            <p className="text-sm">Ruslan Khairulin</p>
+          </HoverCardContent>
+        </HoverCard>
+        <HoverCard>
+          <HoverCardTrigger asChild>
+            <Button asChild variant="ghost" size="icon">
+              <Link
+                href="https://linkedin.com/in/ruslan-khairullin-3a47282a8"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Linkedin className="h-5 w-5" />
+              </Link>
+            </Button>
+          </HoverCardTrigger>
+          <HoverCardContent>
+            <p className="text-sm">Nikita Vorogušin</p>
+          </HoverCardContent>
+        </HoverCard>
+        <HoverCard>
+          <HoverCardTrigger asChild>
+            <Button asChild variant="ghost" size="icon">
+              <Link
+                href="https://linkedin.com/in/andrew-eroshenkov"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Linkedin className="h-5 w-5" />
+              </Link>
+            </Button>
+          </HoverCardTrigger>
+          <HoverCardContent>
+            <p className="text-sm">Andrej Jerošenkov</p>
+          </HoverCardContent>
+        </HoverCard>
       </div>
     </footer>
   );
