@@ -166,4 +166,22 @@ export class DocumentInvitationORM {
       return null;
     }
   }
+
+  async getDocumentById(id: number): Promise<Document | null> {
+    try {
+      const { data, error } = await this.supabase
+        .from('documents')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (error) {
+        console.error('Ошибка получения документа по id:', error);
+        return null;
+      }
+      return data as Document;
+    } catch (error) {
+      console.error('Неожиданная ошибка при получении документа по id:', error);
+      return null;
+    }
+  }
 } 
