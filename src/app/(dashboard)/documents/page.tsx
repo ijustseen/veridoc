@@ -1,6 +1,5 @@
 "use client";
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ColumnDef,
@@ -15,15 +14,14 @@ import {
   TableRow,
   TableHead,
   TableCell,
-  TableCaption,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { documents } from "@/lib/documentsData";
+import { documents, Document } from "@/lib/documentsData";
 
 // Описание колонок для таблицы
-const columns: ColumnDef<any>[] = [
+const columns: ColumnDef<Document>[] = [
   {
     accessorKey: "name",
     header: "Name",
@@ -40,7 +38,7 @@ const columns: ColumnDef<any>[] = [
     header: "Status",
     cell: ({ row }) => {
       const status = row.original.status;
-      let variant: any = "outline";
+      let variant: "outline" | "default" | "secondary" = "outline";
       if (status === "Signed") variant = "default";
       if (status === "Draft") variant = "secondary";
       return <Badge variant={variant}>{status}</Badge>;

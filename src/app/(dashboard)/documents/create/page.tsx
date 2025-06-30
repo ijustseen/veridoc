@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { useWallet } from "@/components/WalletProvider";
 import {
   AlertDialog,
-  AlertDialogTrigger,
   AlertDialogContent,
   AlertDialogHeader,
   AlertDialogFooter,
@@ -23,7 +22,7 @@ export default function CreateDocumentPage() {
   const [fileName, setFileName] = useState("");
   const [signers, setSigners] = useState<string[]>([]);
   const [isPrivate, setIsPrivate] = useState(true);
-  const [readOnly, setReadOnly] = useState(false);
+  // const [readOnly, setReadOnly] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState<null | React.FormEvent>(
     null
@@ -210,7 +209,9 @@ export default function CreateDocumentPage() {
       <AlertDialog open={showDialog} onOpenChange={setShowDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Check the signers' addresses</AlertDialogTitle>
+            <AlertDialogTitle>
+              Check the signers&apos; addresses
+            </AlertDialogTitle>
             <AlertDialogDescription>
               Please make sure you have entered all signers correctly and trust
               these addresses. Continue?
