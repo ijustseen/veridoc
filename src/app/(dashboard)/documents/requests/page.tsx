@@ -111,7 +111,9 @@ export default function RequestsPage() {
                 <Badge variant="secondary">Pending</Badge>
               </CardContent>
               <CardFooter>
-                <Button onClick={() => router.push(`/documents/${req.id}`)}>
+                <Button
+                  onClick={() => router.push(`/documents/${req.id}/sign`)}
+                >
                   Go to document
                 </Button>
               </CardFooter>

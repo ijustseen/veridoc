@@ -37,7 +37,7 @@ export default function AboutPage() {
             <CardContent>
               <CardDescription>
                 Documents are encrypted with a random key, which is then
-                encrypted using the user's public and private keys.
+                encrypted using the user&apos;s public and private keys.
               </CardDescription>
             </CardContent>
           </Card>
@@ -65,7 +65,7 @@ export default function AboutPage() {
                 One of the users creates a document. They upload it in PDF
                 format, generate a completely random key, and encrypt the
                 document with it. Then, this key itself is encrypted using the
-                user's Private Key wallet.
+                user&apos;s Private Key wallet.
               </CardDescription>
             </CardContent>
           </Card>
