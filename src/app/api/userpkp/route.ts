@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { UserPKPORM } from '@/app/storage/database/userPKPORM';
-import { CreateUserPKPInput } from '@/app/storage/database/types';
+import { UserPKPORM } from '@/storage/database/userPKPORM';
+import { CreateUserPKPInput } from '@/storage/database/types';
 
 const orm = new UserPKPORM(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
 

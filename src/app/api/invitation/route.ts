@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { DocumentInvitationORM } from '@/app/storage/database/documentInvitationORM';
-import { CreateInvitationInput } from '@/app/storage/database/types';
+import { DocumentInvitationORM } from '@/storage/database/documentInvitationORM';
+import { CreateInvitationInput } from '@/storage/database/types';
 
 const orm = new DocumentInvitationORM(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
 

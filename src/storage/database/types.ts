@@ -13,8 +13,9 @@ export interface Document {
   hash: string;
   title: string;
   creator_address: string;
-  encrypted_file_url: string;
-  encrypted_aes_key_for_creator: string;
+  file_url: string;
+  encrypted_aes_key_for_creator?: string;
+  is_encrypted: boolean;
   created_at: string;
 }
 
@@ -30,8 +31,9 @@ export interface CreateDocumentInput {
   hash: string;
   title: string;
   creator_address: string;
-  encrypted_file_url: string;
-  encrypted_aes_key_for_creator: string;
+  file_url: string;
+  encrypted_aes_key_for_creator?: string;
+  is_encrypted: boolean;
 }
 
 export interface InvitationWithDocument extends Invitation {
