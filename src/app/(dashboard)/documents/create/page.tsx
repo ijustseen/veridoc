@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useWallet } from "@/components/WalletProvider";
@@ -28,12 +28,28 @@ export default function CreateDocumentPage() {
   const [pendingSubmit, setPendingSubmit] = useState<null | React.FormEvent>(
     null
   );
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
 
   const router = useRouter();
 
+  useEffect(() => {
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPdfPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setPdfPreviewUrl(null);
+    }
+  }, [file]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+      const uploadedFile = e.target.files[0];
+      setFile(uploadedFile);
+
+      // Extract file name without extension
+      const nameWithoutExtension = uploadedFile.name.replace(/\.[^/\.]+$/, "");
+      setFileName(nameWithoutExtension);
     }
   };
 
@@ -79,8 +95,11 @@ export default function CreateDocumentPage() {
   };
 
   return (
-    <>
-      <form onSubmit={handleSubmit} className="space-y-6 max-w-xl">
+    <div className="flex flex-col md:flex-row gap-6 max-w-full">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-6 flex-1 max-w-xl md:max-w-none flex flex-col"
+      >
         <h1 className="text-2xl font-bold mb-4">Create a new document</h1>
         <div>
           <label className="block mb-1 font-medium">Document name</label>
@@ -90,6 +109,7 @@ export default function CreateDocumentPage() {
             value={fileName}
             onChange={(e) => setFileName(e.target.value)}
             required
+            readOnly
           />
         </div>
         <div>
@@ -117,31 +137,7 @@ export default function CreateDocumentPage() {
             </label>
           </div>
         </div>
-        <div>
-          <label className="block mb-1 font-medium">Access rights</label>
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="access"
-                checked={!readOnly}
-                onChange={() => setReadOnly(false)}
-                disabled
-              />
-              Sign and read
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="access"
-                checked={readOnly}
-                onChange={() => setReadOnly(true)}
-                disabled
-              />
-              Read only
-            </label>
-          </div>
-        </div>
+
         <div className="w-full">
           <label className="block mb-1 font-medium">PDF document</label>
           <Input
@@ -186,10 +182,31 @@ export default function CreateDocumentPage() {
             </Button>
           </div>
         </div>
-        <Button type="submit" className="w-full">
+        <Button type="submit" className="w-full mt-auto">
           Create and send for signing
         </Button>
       </form>
+
+      {/* Right column: Always present on md and lg, content changes */}
+      <div className="flex-1 hidden md:flex flex-col items-center justify-center bg-gray-100 rounded-lg">
+        {pdfPreviewUrl ? (
+          // PDF Preview - visible only on lg
+          // <div className="hidden lg:flex flex-col items-center justify-center w-full h-full">
+
+          <iframe
+            src={pdfPreviewUrl}
+            width="100%"
+            height="100%"
+            className="border rounded-md h-full"
+          ></iframe>
+        ) : (
+          // Placeholder message - visible on md and lg
+          <p className="text-muted-foreground">
+            Upload a PDF to see a preview.
+          </p>
+        )}
+      </div>
+
       <AlertDialog open={showDialog} onOpenChange={setShowDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -220,6 +237,6 @@ export default function CreateDocumentPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 }

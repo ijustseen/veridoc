@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { useWallet } from "@/components/WalletProvider";
 import {
   Card,
   CardContent,
@@ -12,6 +13,14 @@ import {
 
 export default function Home() {
   const router = useRouter();
+  const { account, connectWallet } = useWallet();
+
+  const handleGetStartedClick = async () => {
+    if (!account) {
+      await connectWallet();
+    }
+    router.push("/dashboard");
+  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-theme(spacing.16))] py-12 px-4 sm:px-6 lg:px-8">
@@ -25,13 +34,13 @@ export default function Home() {
           multi-signatures, and flexible access control.
         </p>
         <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
-          <Button size="lg" onClick={() => router.push("/dashboard")}>
+          <Button size="lg" onClick={handleGetStartedClick}>
             Get Started
           </Button>
           <Button
             variant="outline"
             size="lg"
-            onClick={() => alert("Learn More clicked!")}
+            onClick={() => router.push("/about")}
           >
             {" "}
             {/* Placeholder alert */}

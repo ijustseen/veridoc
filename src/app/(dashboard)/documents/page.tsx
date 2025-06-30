@@ -69,12 +69,17 @@ export default function DocumentsPage() {
 
   return (
     <>
-      <div className="max-w-md mb-4">
-        <Input
-          placeholder="Search documents..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+      <div className="flex justify-between items-center mb-4">
+        <div className="max-w-md flex-grow">
+          <Input
+            placeholder="Search documents..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <Button onClick={() => router.push("/documents/create")}>
+          Create document
+        </Button>
       </div>
       <div className="rounded-md border">
         <Table>
@@ -119,8 +124,16 @@ export default function DocumentsPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="text-center">
-                  No documents found.
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-48 text-center"
+                >
+                  <p className="text-muted-foreground mb-2">
+                    No documents found. Why not create one?
+                  </p>
+                  <Button onClick={() => router.push("/documents/create")}>
+                    Create your first document
+                  </Button>
                 </TableCell>
               </TableRow>
             )}

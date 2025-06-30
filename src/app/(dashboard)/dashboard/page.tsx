@@ -19,6 +19,16 @@ import {
 } from "@/components/ui/card";
 import { Search } from "lucide-react";
 import Link from "next/link";
+import * as React from "react";
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import { Badge } from "@/components/ui/badge";
+import { documents } from "@/lib/documentsData";
+import { useRouter } from "next/navigation";
 
 // Добавляем объявление для window.ethereum
 declare global {
@@ -27,7 +37,41 @@ declare global {
   }
 }
 
+const columns: ColumnDef<any>[] = [
+  {
+    accessorKey: "name",
+    header: "Name",
+    cell: ({ row }) => (
+      <span className="text-primary">{row.original.name}</span>
+    ),
+  },
+  {
+    accessorKey: "signatures",
+    header: "Signatures",
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => {
+      const status = row.original.status;
+      let variant: any = "outline";
+      if (status === "Signed") variant = "default";
+      if (status === "Draft") variant = "secondary";
+      return <Badge variant={variant}>{status}</Badge>;
+    },
+  },
+];
+
 export default function Dashboard() {
+  const lastTwoDocuments = documents.slice(-2); // Get the last two documents
+  const router = useRouter();
+
+  const table = useReactTable({
+    data: lastTwoDocuments,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
+
   return (
     <>
       <section className="flex flex-col md:flex-row justify-center space-y-4 md:space-y-0 md:space-x-4 mb-8">
@@ -102,45 +146,55 @@ export default function Dashboard() {
             <Link href="/documents">View all</Link>
           </Button>
         </div>
-        <div className="flex items-center space-x-2">
-          <Input
-            type="text"
-            placeholder="Search for..."
-            className="flex-grow"
-          />
-          <Button variant="ghost" size="icon">
-            <Search className="h-4 w-4" />
-          </Button>
-        </div>
 
-        <Table>
-          <TableCaption>A list of your previous documents.</TableCaption>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Signatures</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {/* Placeholder rows */}
-            <TableRow>
-              <TableCell className="font-medium">Document A</TableCell>
-              <TableCell>2/3</TableCell>
-              <TableCell>Pending</TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell className="font-medium">Document B</TableCell>
-              <TableCell>1/1</TableCell>
-              <TableCell>Signed</TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell className="font-medium">Document C</TableCell>
-              <TableCell>0/2</TableCell>
-              <TableCell>Draft</TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id}>
+                      {flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-24 text-center"
+                  >
+                    <p className="text-muted-foreground mb-2">
+                      No documents found. Why not create one?
+                    </p>
+                    <Button onClick={() => router.push("/documents/create")}>
+                      Create your first document
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </section>
     </>
   );

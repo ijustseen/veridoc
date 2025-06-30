@@ -14,6 +14,7 @@ interface WalletContextType {
   error: string | null;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
+  isInitialLoading: boolean;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -22,25 +23,44 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   const [account, setAccount] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     async function checkConnection() {
-      if (window.ethereum && localStorage.getItem("walletConnected")) {
-        try {
-          const provider = new ethers.BrowserProvider(window.ethereum);
-          const accounts = await provider.send("eth_accounts", []);
-          if (accounts && accounts.length > 0) {
-            setAccount(accounts[0]);
-          } else {
-            setAccount(null);
-          }
-        } catch {
+      if (!isClient) {
+        return;
+      }
+
+      if (!window.ethereum || !localStorage.getItem("walletConnected")) {
+        setAccount(null);
+        setIsInitialLoading(false);
+        return;
+      }
+
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const accounts = await provider.send("eth_accounts", []);
+        if (accounts && accounts.length > 0) {
+          setAccount(accounts[0]);
+        } else {
           setAccount(null);
         }
+      } catch {
+        setAccount(null);
+      } finally {
+        setIsInitialLoading(false);
       }
     }
-    checkConnection();
-  }, []);
+
+    if (isClient) {
+      checkConnection();
+    }
+  }, [isClient]);
 
   const connectWallet = async () => {
     setError(null);
@@ -69,7 +89,14 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <WalletContext.Provider
-      value={{ account, isConnecting, error, connectWallet, disconnectWallet }}
+      value={{
+        account,
+        isConnecting,
+        error,
+        connectWallet,
+        disconnectWallet,
+        isInitialLoading,
+      }}
     >
       {children}
     </WalletContext.Provider>
