@@ -1,0 +1,10 @@
+{
+  "sepolia": {
+    "registry": "",
+    "chainId": 11155111
+  },
+  "hardhat": {
+    "registry": "",
+    "chainId": 1337
+  }
+}
