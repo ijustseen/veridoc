@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "./VeriDocRegistry.sol";
-import "./VeriDocKeyManager.sol";
-import "./VeriDocVerifier.sol";
+import "./Registry.sol";
+import "./KeyManager.sol";
+import "./Verifier.sol";
 
 /**
  * @title VeriDocFacade

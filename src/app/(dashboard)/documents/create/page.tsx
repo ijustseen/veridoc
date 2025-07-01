@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { generateAESKey, encryptFile } from "@/cryptography/aes";
 import { hashFile } from "@/cryptography/hash";
 import { encryptAESKeyForDocument } from "@/cryptography/lit-encryption";
+import { getBlockchainService } from "@/lib/blockchain";
 
 export default function CreateDocumentPage() {
   const { account, pkpInfo, refreshAuthSig } = useWallet();
@@ -204,7 +205,46 @@ export default function CreateDocumentPage() {
         console.log('🔹 Публичный документ - пропускаем шифрование');
       }
 
-      // 7. Создаем приглашения для подписантов
+      // 7. Создаем документ в блокчейне (Sepolia)
+      console.log('🔹 Создаем документ в блокчейне...');
+      const blockchainService = getBlockchainService();
+      const isInitialized = await blockchainService.initialize();
+      
+      if (isInitialized) {
+        const allSigners = signers.filter(s => s.trim());
+        const encryptedKeysForBlockchain = isPrivate ? new Array(allSigners.length).fill('') : [];
+        
+        const blockchainResult = await blockchainService.createDocument(
+          fileHash,
+          !isPrivate, // isPublic = !isPrivate
+          allSigners,
+          encryptedKeysForBlockchain
+        );
+        
+        if (blockchainResult.success) {
+          console.log('✅ Документ создан в блокчейне с ID:', blockchainResult.documentId);
+          console.log('🔗 Транзакция:', blockchainResult.txHash);
+          
+          // Сохраняем blockchain_id в базе данных
+          await fetch(`/api/document/${document.id}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              blockchain_id: blockchainResult.documentId,
+              blockchain_tx: blockchainResult.txHash
+            }),
+          });
+        } else {
+          console.warn('⚠️ Не удалось создать документ в блокчейне:', blockchainResult.error);
+          // Продолжаем без блокчейна
+        }
+      } else {
+        console.warn('⚠️ Не удалось инициализировать блокчейн сервис');
+      }
+
+      // 8. Создаем приглашения для подписантов
       for (const signerAddress of signers.filter(s => s.trim())) {
         await fetch('/api/invitation', {
           method: 'POST',
@@ -219,6 +259,7 @@ export default function CreateDocumentPage() {
         });
       }
 
+      console.log('✅ Документ полностью создан!');
       router.push("/dashboard");
 
     } catch (error) {

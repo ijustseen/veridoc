@@ -16,6 +16,8 @@ export interface Document {
   file_url: string;
   encrypted_aes_key_for_creator?: string;
   is_encrypted: boolean;
+  blockchain_id?: number;
+  blockchain_tx?: string;
   created_at: string;
 }
 
