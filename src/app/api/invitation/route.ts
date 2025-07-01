@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { DocumentInvitationORM } from '@/storage/database/documentInvitationORM';
 import { CreateInvitationInput } from '@/storage/database/types';
 
-const orm = new DocumentInvitationORM(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
+const orm = new DocumentInvitationORM(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
 export async function POST(req: NextRequest) {
   const body: CreateInvitationInput = await req.json();
@@ -13,16 +13,31 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const wallet = req.nextUrl.searchParams.get('wallet');
+  const walletAddress = req.nextUrl.searchParams.get('wallet_address');
   const docId = req.nextUrl.searchParams.get('document_id');
-  if (wallet) {
-    const data = await orm.getInvitationsByWalletAddress(wallet);
+  
+  // Если указаны и document_id и wallet_address, возвращаем конкретное приглашение
+  if (docId && (wallet || walletAddress)) {
+    const address = wallet || walletAddress;
+    const invitations = await orm.getInvitationsByDocumentId(Number(docId));
+    const specificInvitation = invitations.find(inv => inv.wallet_address.toLowerCase() === address!.toLowerCase());
+    if (!specificInvitation) {
+      return NextResponse.json({ error: 'Приглашение не найдено' }, { status: 404 });
+    }
+    return NextResponse.json(specificInvitation);
+  }
+  
+  // Остальная логика как раньше
+  if (wallet || walletAddress) {
+    const address = wallet || walletAddress;
+    const data = await orm.getInvitationsByWalletAddress(address!);
     return NextResponse.json(data);
   }
   if (docId) {
     const data = await orm.getInvitationsByDocumentId(Number(docId));
     return NextResponse.json(data);
   }
-  return NextResponse.json({ error: 'Не указан wallet или document_id' }, { status: 400 });
+  return NextResponse.json({ error: 'Не указан wallet/wallet_address или document_id' }, { status: 400 });
 }
 
 export async function PUT(req: NextRequest) {

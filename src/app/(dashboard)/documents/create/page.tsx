@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useWallet } from "@/components/WalletProvider";
+import { PKPSetup } from "@/components/PKPSetup";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -15,19 +16,21 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { useRouter } from "next/navigation";
+import { generateAESKey, encryptFile } from "@/cryptography/aes";
+import { hashFile } from "@/cryptography/hash";
+import { encryptAESKeyForDocument } from "@/cryptography/lit-encryption";
 
 export default function CreateDocumentPage() {
-  const { account } = useWallet();
+  const { account, pkpInfo, refreshAuthSig } = useWallet();
   const [file, setFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState("");
   const [signers, setSigners] = useState<string[]>([]);
   const [isPrivate, setIsPrivate] = useState(true);
-  // const [readOnly, setReadOnly] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
-  const [pendingSubmit, setPendingSubmit] = useState<null | React.FormEvent>(
-    null
-  );
+  const [pendingSubmit, setPendingSubmit] = useState<null | React.FormEvent>(null);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const router = useRouter();
 
@@ -64,27 +67,165 @@ export default function CreateDocumentPage() {
     setSigners((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (signers.length > 0) {
+    console.log('🔹 handleSubmit вызван');
+    
+    if (signers.filter(s => s.trim()).length > 0) {
+      console.log('🔹 Есть дополнительные подписанты, показываем диалог');
       setPendingSubmit(e);
       setShowDialog(true);
       return;
     }
-    // TODO: handle document creation
-    setTimeout(() => {
-      router.push("/dashboard");
-    }, 2000);
+    
+    console.log('🔹 Нет дополнительных подписантов, создаем документ сразу');
+    await createDocument();
   };
 
-  const handleDialogConfirm = () => {
+  const handleDialogConfirm = async () => {
     setShowDialog(false);
     if (pendingSubmit) {
-      // TODO: handle document creation
+      await createDocument();
       setPendingSubmit(null);
+    }
+  };
 
-      setTimeout(() => {}, 2000);
+  const createDocument = async () => {
+    console.log('🔹 Начинаем создание документа...');
+    console.log('🔹 file:', !!file, 'account:', !!account, 'pkpInfo:', !!pkpInfo);
+    console.log('🔹 isPrivate:', isPrivate);
+    
+    if (!file || !account || !pkpInfo) {
+      console.error('❌ Отсутствуют необходимые данные:', { file: !!file, account: !!account, pkpInfo: !!pkpInfo });
+      setCreateError("Отсутствуют необходимые данные для создания документа");
+      return;
+    }
+
+    setIsCreating(true);
+    setCreateError(null);
+
+    try {
+      console.log('🔹 Генерируем AES ключ...');
+      const aesKey = generateAESKey();
+      
+      console.log('🔹 Вычисляем хеш файла...');
+      const fileHash = await hashFile(file);
+
+      // 4. Создаем документ в базе данных
+      const docFormData = new FormData();
+      
+      if (isPrivate) {
+        console.log('🔹 Приватный документ - шифруем файл...');
+        // Для приватных документов шифруем файл
+        const encryptedFileResult = await encryptFile(file, aesKey);
+        if (!encryptedFileResult.success) {
+          throw new Error(encryptedFileResult.error || 'Ошибка шифрования файла');
+        }
+        const encryptedBlob = new Blob([encryptedFileResult.data!], { type: 'application/octet-stream' });
+        docFormData.append('file', encryptedBlob, `encrypted_${fileName}.bin`);
+        docFormData.append('encrypted_aes_key_for_creator', aesKey);
+      } else {
+        console.log('🔹 Публичный документ - не шифруем...');
+        // Для публичных документов загружаем оригинальный файл
+        docFormData.append('file', file);
+      }
+      
+      docFormData.append('title', fileName);
+      docFormData.append('hash', fileHash);
+      docFormData.append('creator_address', account);
+      docFormData.append('is_public', (!isPrivate).toString());
+
+      const createDocResponse = await fetch('/api/document', {
+        method: 'POST',
+        body: docFormData,
+      });
+
+      if (!createDocResponse.ok) {
+        throw new Error('Ошибка создания документа');
+      }
+
+      const document = await createDocResponse.json();
+      console.log('🔹 Документ создан:', document);
+
+      // 5. Только для приватных документов - шифруем AES ключ с помощью Lit Protocol
+      if (isPrivate) {
+        console.log('🔹 Приватный документ - настраиваем шифрование...');
+        const allSigners = [account, ...signers.filter(s => s.trim())];
+        console.log('🔹 Все подписанты:', allSigners);
+        console.log('🔹 Количество подписантов:', allSigners.length);
+        
+        // Нужен authSig для шифрования
+        let currentAuthSig = pkpInfo.authSig;
+        if (!currentAuthSig) {
+          console.log('AuthSig недоступен, обновляем...');
+          currentAuthSig = await refreshAuthSig();
+          
+          // Проверяем что authSig создался
+          if (!currentAuthSig) {
+            throw new Error('Не удалось создать authSig для шифрования');
+          }
+        }
+        
+        console.log('🔹 Начинаем шифрование AES ключа...');
+        const encryptedKeyResult = await encryptAESKeyForDocument(aesKey, allSigners, currentAuthSig);
+        console.log('🔹 Результат шифрования ключа:', encryptedKeyResult);
+        
+        if (!encryptedKeyResult.success) {
+          console.error('❌ Ошибка шифрования ключа:', encryptedKeyResult.error);
+          throw new Error(encryptedKeyResult.error || 'Ошибка шифрования ключа');
+        }
+
+        // 6. Сохраняем зашифрованные данные
+        console.log('🔹 Отправляем данные в /api/encrypt...');
+        const encryptResponse = await fetch('/api/encrypt', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            data: aesKey,
+            documentId: document.id,
+            walletAddresses: allSigners,
+            authSig: currentAuthSig,
+          }),
+        });
+
+        console.log('🔹 Ответ от /api/encrypt:', encryptResponse.status, encryptResponse.statusText);
+        
+        if (!encryptResponse.ok) {
+          const errorText = await encryptResponse.text();
+          console.error('❌ Ошибка /api/encrypt:', errorText);
+          throw new Error('Ошибка сохранения зашифрованных данных');
+        }
+
+        const encryptResult = await encryptResponse.json();
+        console.log('🔹 Результат /api/encrypt:', encryptResult);
+      } else {
+        console.log('🔹 Публичный документ - пропускаем шифрование');
+      }
+
+      // 7. Создаем приглашения для подписантов
+      for (const signerAddress of signers.filter(s => s.trim())) {
+        await fetch('/api/invitation', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            document_id: document.id,
+            wallet_address: signerAddress,
+            status: 'pending',
+          }),
+        });
+      }
+
       router.push("/dashboard");
+
+    } catch (error) {
+      console.error('Ошибка создания документа:', error);
+      setCreateError(error instanceof Error ? error.message : 'Неизвестная ошибка');
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -93,6 +234,23 @@ export default function CreateDocumentPage() {
     setPendingSubmit(null);
   };
 
+  // Показываем PKP Setup если PKP не создан
+  if (!pkpInfo) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <h1 className="text-2xl font-bold mb-6">Create a new document</h1>
+        <PKPSetup />
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <p className="text-sm text-blue-800">
+            <strong>Необходимо создать PKP:</strong> Для безопасного шифрования документов 
+            требуется создать Programmable Key Pair. Это позволит шифровать документы 
+            без раскрытия вашего приватного ключа MetaMask.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col md:flex-row gap-6 max-w-full">
       <form
@@ -100,6 +258,12 @@ export default function CreateDocumentPage() {
         className="space-y-6 flex-1 max-w-xl md:max-w-none flex flex-col"
       >
         <h1 className="text-2xl font-bold mb-4">Create a new document</h1>
+        
+        {createError && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-sm text-red-800">{createError}</p>
+          </div>
+        )}
         <div>
           <label className="block mb-1 font-medium">Document name</label>
           <Input
@@ -119,8 +283,10 @@ export default function CreateDocumentPage() {
                 type="radio"
                 name="docType"
                 checked={isPrivate}
-                onChange={() => setIsPrivate(true)}
-                disabled
+                onChange={() => {
+                  console.log('🔹 Переключили на Private');
+                  setIsPrivate(true);
+                }}
               />
               Private
             </label>
@@ -129,8 +295,10 @@ export default function CreateDocumentPage() {
                 type="radio"
                 name="docType"
                 checked={!isPrivate}
-                onChange={() => setIsPrivate(false)}
-                disabled
+                onChange={() => {
+                  console.log('🔹 Переключили на Public');
+                  setIsPrivate(false);
+                }}
               />
               Public
             </label>
@@ -181,8 +349,8 @@ export default function CreateDocumentPage() {
             </Button>
           </div>
         </div>
-        <Button type="submit" className="w-full mt-auto">
-          Create and send for signing
+        <Button type="submit" className="w-full mt-auto" disabled={isCreating}>
+          {isCreating ? "Creating document..." : "Create and send for signing"}
         </Button>
       </form>
 

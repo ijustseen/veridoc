@@ -44,10 +44,30 @@ export type UserPKP = {
   id: number;
   wallet_address: string;
   token_id: string;
+  public_key: string;
+  eth_address?: string;
   created_at: string;
 };
 
 export type CreateUserPKPInput = {
   wallet_address: string;
   token_id: string;
-}; 
+  public_key: string;
+  eth_address?: string;
+};
+
+export interface EncryptedDocument {
+  id: number;
+  document_id: number;
+  ciphertext: string;
+  data_to_encrypt_hash: string;
+  access_control_conditions: string; // JSON string
+  created_at: string;
+}
+
+export interface CreateEncryptedDocumentInput {
+  document_id: number;
+  ciphertext: string;
+  data_to_encrypt_hash: string;
+  access_control_conditions: string;
+} 

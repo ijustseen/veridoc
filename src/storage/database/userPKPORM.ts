@@ -30,9 +30,12 @@ export class UserPKPORM {
 
   async createUserPKP(data: CreateUserPKPInput): Promise<UserPKP | null> {
     try {
+      // Временно убираем eth_address из-за проблем с кешем схемы Supabase
+      const { eth_address, ...dataWithoutEthAddress } = data;
+      
       const { data: inserted, error } = await this.supabase
         .from('user_pkps')
-        .insert([data])
+        .insert([dataWithoutEthAddress])
         .select()
         .single();
       if (error) {
@@ -42,6 +45,45 @@ export class UserPKPORM {
       return inserted as UserPKP;
     } catch (error) {
       console.error('Неожиданная ошибка при создании user_pkps:', error);
+      return null;
+    }
+  }
+
+  async getPKPByTokenId(tokenId: string): Promise<UserPKP | null> {
+    try {
+      const { data, error } = await this.supabase
+        .from('user_pkps')
+        .select('*')
+        .eq('token_id', tokenId)
+        .single();
+      if (error) {
+        if (error.code !== 'PGRST116') {
+          console.error('Ошибка получения PKP по token_id:', error);
+        }
+        return null;
+      }
+      return data as UserPKP;
+    } catch (error) {
+      console.error('Неожиданная ошибка при получении PKP по token_id:', error);
+      return null;
+    }
+  }
+
+  async updateUserPKP(tokenId: string, updates: Partial<UserPKP>): Promise<UserPKP | null> {
+    try {
+      const { data, error } = await this.supabase
+        .from('user_pkps')
+        .update(updates)
+        .eq('token_id', tokenId)
+        .select()
+        .single();
+      if (error) {
+        console.error('Ошибка обновления PKP:', error);
+        return null;
+      }
+      return data as UserPKP;
+    } catch (error) {
+      console.error('Неожиданная ошибка при обновлении PKP:', error);
       return null;
     }
   }

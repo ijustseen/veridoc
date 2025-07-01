@@ -3,7 +3,7 @@ import { DocumentInvitationORM } from '@/storage/database/documentInvitationORM'
 import { CreateDocumentInput } from '@/storage/database/types';
 import { uploadAndGetPublicUrlByType } from '@/storage/bucket/bucket';
 
-const orm = new DocumentInvitationORM(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
+const orm = new DocumentInvitationORM(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
 export async function POST(req: NextRequest) {
   // Проверяем Content-Type
@@ -33,8 +33,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Для зашифрованных документов требуется encrypted_aes_key_for_creator' }, { status: 400 });
   }
 
-  // Путь для файла в бакете
-  const filePath = `${creator_address}/${Date.now()}_${file.name}`;
+  // Путь для файла в бакете (очищаем имя файла от спецсимволов)
+  const sanitizedFileName = file.name
+    .replace(/[^\w\-_.]/g, '_') // заменяем спецсимволы на _
+    .replace(/_{2,}/g, '_'); // убираем повторяющиеся _
+  const filePath = `${creator_address}/${Date.now()}_${sanitizedFileName}`;
   const publicUrl = await uploadAndGetPublicUrlByType(isPublic, filePath, file);
   if (!publicUrl) {
     return NextResponse.json({ error: 'Ошибка загрузки файла' }, { status: 500 });

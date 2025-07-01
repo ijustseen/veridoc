@@ -41,8 +41,6 @@ export default function Home() {
             size="lg"
             onClick={() => router.push("/about")}
           >
-            {" "}
-            {/* Placeholder alert */}
             Learn More
           </Button>
         </div>
