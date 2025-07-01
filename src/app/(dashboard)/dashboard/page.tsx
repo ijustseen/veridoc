@@ -23,41 +23,80 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { Badge } from "@/components/ui/badge";
-import { documents, Document } from "@/lib/documentsData";
 import { useRouter } from "next/navigation";
+import { useWallet } from "@/components/WalletProvider";
+import { Document } from "@/storage/database/types";
 
 const columns: ColumnDef<Document>[] = [
   {
-    accessorKey: "name",
+    accessorKey: "title",
     header: "Name",
     cell: ({ row }) => (
-      <span className="text-primary">{row.original.name}</span>
+      <span className="text-primary">{row.original.title}</span>
     ),
   },
   {
-    accessorKey: "signatures",
-    header: "Signatures",
+    accessorKey: "creator_address",
+    header: "Creator Address",
   },
   {
-    accessorKey: "status",
-    header: "Status",
+    accessorKey: "created_at",
+    header: "Created At",
     cell: ({ row }) => {
-      const status = row.original.status;
-      let variant: "outline" | "default" | "secondary" = "outline";
-      if (status === "Signed") variant = "default";
-      if (status === "Draft") variant = "secondary";
-      return <Badge variant={variant}>{status}</Badge>;
+      const date = new Date(row.original.created_at);
+      return date.toLocaleDateString();
     },
   },
 ];
 
 export default function Dashboard() {
-  const lastTwoDocuments = documents.slice(-2); // Get the last two documents
   const router = useRouter();
+  const { account, isInitialLoading } = useWallet();
+  const [createdDocuments, setCreatedDocuments] = React.useState<Document[]>(
+    []
+  );
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const fetchDocuments = async () => {
+      if (isInitialLoading || !account) {
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(`/api/document/list?wallet=${account}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data: Document[] = await response.json();
+        const userCreatedDocs = data.filter(
+          (doc) => doc.creator_address.toLowerCase() === account.toLowerCase()
+        );
+        const sortedDocs = userCreatedDocs.sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        setCreatedDocuments(sortedDocs.slice(0, 3));
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("An unknown error occurred");
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDocuments();
+  }, [account, isInitialLoading]);
 
   const table = useReactTable({
-    data: lastTwoDocuments,
+    data: createdDocuments,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -104,7 +143,7 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <span className="text-3xl font-bold">12</span>
+            <span className="text-3xl font-bold">N/A</span>
           </CardContent>
         </Card>
         <Card>
@@ -115,7 +154,7 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <span className="text-3xl font-bold">18</span>
+            <span className="text-3xl font-bold">N/A</span>
           </CardContent>
         </Card>
         <Card>
@@ -124,7 +163,7 @@ export default function Dashboard() {
             <CardDescription>Accessible encrypted documents</CardDescription>
           </CardHeader>
           <CardContent>
-            <span className="text-3xl font-bold">5</span>
+            <span className="text-3xl font-bold">N/A</span>
           </CardContent>
         </Card>
       </section>
@@ -154,9 +193,38 @@ export default function Dashboard() {
               ))}
             </TableHeader>
             <TableBody>
-              {table.getRowModel().rows.length ? (
+              {isLoading ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-24 text-center"
+                  >
+                    Loading documents...
+                  </TableCell>
+                </TableRow>
+              ) : error ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-24 text-center text-destructive"
+                  >
+                    Error: {error}
+                  </TableCell>
+                </TableRow>
+              ) : table.getRowModel().rows.length ? (
                 table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id}>
+                  <TableRow
+                    key={row.id}
+                    className="cursor-pointer hover:bg-accent/40 transition-colors"
+                    onClick={() => router.push(`/documents/${row.original.id}`)}
+                    tabIndex={0}
+                    role="button"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        router.push(`/documents/${row.original.id}`);
+                      }
+                    }}
+                  >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id}>
                         {flexRender(

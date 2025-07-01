@@ -7,9 +7,9 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
-    <>
+    <div className="flex-1 flex flex-col">
       <DashboardBreadcrumb />
-      {children}
-    </>
+      <div className="flex-1 overflow-auto h-full">{children}</div>
+    </div>
   );
 }

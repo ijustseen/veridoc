@@ -15,11 +15,12 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { useRouter } from "next/navigation";
+import { hashBinaryWithEthers } from "@/lib/utils";
 
 export default function CreateDocumentPage() {
   const { account } = useWallet();
   const [file, setFile] = useState<File | null>(null);
-  const [fileName, setFileName] = useState("");
+  const [title, setTitle] = useState("");
   const [signers, setSigners] = useState<string[]>([]);
   const [isPrivate, setIsPrivate] = useState(true);
   // const [readOnly, setReadOnly] = useState(false);
@@ -47,8 +48,11 @@ export default function CreateDocumentPage() {
       setFile(uploadedFile);
 
       // Extract file name without extension
-      const nameWithoutExtension = uploadedFile.name.replace(/\.[^/\.]+$/, "");
-      setFileName(nameWithoutExtension);
+      const nameWithoutExtension = uploadedFile.name.replace(
+        /\\.[^/\\.]+$/,
+        ""
+      );
+      setTitle(nameWithoutExtension);
     }
   };
 
@@ -64,27 +68,70 @@ export default function CreateDocumentPage() {
     setSigners((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!file || !account) {
+      alert("Выберите файл и убедитесь, что ваш кошелек подключен.");
+      return;
+    }
+
     if (signers.length > 0) {
       setPendingSubmit(e);
       setShowDialog(true);
       return;
     }
-    // TODO: handle document creation
-    setTimeout(() => {
-      router.push("/dashboard");
-    }, 2000);
+
+    // Хеширование файла и отправка
+    await createDocument();
   };
 
-  const handleDialogConfirm = () => {
+  const createDocument = async () => {
+    if (!file || !account) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const arrayBuffer = event.target?.result as ArrayBuffer;
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const fileHash = hashBinaryWithEthers(uint8Array);
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("title", title);
+      formData.append("hash", fileHash);
+      formData.append("creator_address", account);
+      formData.append("is_public", String(!isPrivate));
+
+      // TODO: Добавить логику для encrypted_aes_key_for_creator, если isPrivate
+      // Пока что игнорируем это для упрощения
+
+      try {
+        const response = await fetch("/api/document", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log("Документ успешно создан:", result);
+          router.push("/dashboard");
+        } else {
+          const errorData = await response.json();
+          alert(`Ошибка создания документа: ${errorData.error}`);
+        }
+      } catch (error) {
+        console.error("Ошибка при отправке документа:", error);
+        alert("Ошибка при отправке документа. Пожалуйста, попробуйте снова.");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleDialogConfirm = async () => {
     setShowDialog(false);
     if (pendingSubmit) {
-      // TODO: handle document creation
+      await createDocument();
       setPendingSubmit(null);
-
-      setTimeout(() => {}, 2000);
-      router.push("/dashboard");
     }
   };
 
@@ -105,10 +152,10 @@ export default function CreateDocumentPage() {
           <Input
             type="text"
             placeholder="Enter document name"
-            value={fileName}
-            onChange={(e) => setFileName(e.target.value)}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
             required
-            readOnly
+            // readOnly
           />
         </div>
         <div>
@@ -120,7 +167,7 @@ export default function CreateDocumentPage() {
                 name="docType"
                 checked={isPrivate}
                 onChange={() => setIsPrivate(true)}
-                disabled
+                // disabled
               />
               Private
             </label>
@@ -130,7 +177,7 @@ export default function CreateDocumentPage() {
                 name="docType"
                 checked={!isPrivate}
                 onChange={() => setIsPrivate(false)}
-                disabled
+                // disabled
               />
               Public
             </label>
