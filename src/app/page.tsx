@@ -1,6 +1,5 @@
 "use client";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useWallet } from "@/components/WalletProvider";
 import {
@@ -60,7 +59,7 @@ export default function Home() {
             <CardContent>
               <CardDescription>
                 Documents are encrypted with a randomly generated key, which is
-                then encrypted using the user's public and private keys.
+                then encrypted using the user&apos;s public and private keys.
               </CardDescription>
             </CardContent>
           </Card>
@@ -103,7 +102,7 @@ export default function Home() {
               <CardDescription>
                 A user creates a document, uploads it as a PDF, generates a
                 random encryption key, and encrypts the document. The key itself
-                is then encrypted with the user's private wallet key.
+                is then encrypted with the user&apos;s private wallet key.
               </CardDescription>
             </CardContent>
           </Card>
@@ -115,7 +114,7 @@ export default function Home() {
               <CardDescription>
                 The document owner selects signers by their wallet addresses and
                 sends them a signature request, along with the document key
-                encrypted with each signer's public key.
+                encrypted with each signer&apos;s public key.
               </CardDescription>
             </CardContent>
           </Card>

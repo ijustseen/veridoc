@@ -1,10 +1,10 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { ethers } from "ethers";
+import { ethers, type Eip1193Provider } from "ethers";
 
 declare global {
   interface Window {
-    ethereum?: any;
+    ethereum?: Eip1193Provider;
   }
 }
 
@@ -43,6 +43,11 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       try {
+        if (!window.ethereum.request) {
+          setAccount(null);
+          setIsInitialLoading(false);
+          return;
+        }
         const provider = new ethers.BrowserProvider(window.ethereum);
         const accounts = await provider.send("eth_accounts", []);
         if (accounts && accounts.length > 0) {
@@ -50,8 +55,12 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
         } else {
           setAccount(null);
         }
-      } catch {
-        setAccount(null);
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("An unknown error occurred");
+        }
       } finally {
         setIsInitialLoading(false);
       }
@@ -66,8 +75,8 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     setError(null);
     setIsConnecting(true);
     try {
-      if (!window.ethereum) {
-        setError("MetaMask is not installed");
+      if (!window.ethereum || !window.ethereum.request) {
+        setError("MetaMask is not installed or not providing a request method");
         setIsConnecting(false);
         return;
       }
@@ -75,8 +84,12 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
       const accounts = await provider.send("eth_requestAccounts", []);
       setAccount(accounts[0]);
       localStorage.setItem("walletConnected", "1");
-    } catch (err: any) {
-      setError(err.message || "Connection error");
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Connection error");
+      }
     } finally {
       setIsConnecting(false);
     }

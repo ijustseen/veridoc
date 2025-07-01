@@ -1,9 +1,7 @@
 "use client";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -17,7 +15,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Search } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 import {
@@ -27,17 +24,10 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
-import { documents } from "@/lib/documentsData";
+import { documents, Document } from "@/lib/documentsData";
 import { useRouter } from "next/navigation";
 
-// Добавляем объявление для window.ethereum
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
-}
-
-const columns: ColumnDef<any>[] = [
+const columns: ColumnDef<Document>[] = [
   {
     accessorKey: "name",
     header: "Name",
@@ -54,7 +44,7 @@ const columns: ColumnDef<any>[] = [
     header: "Status",
     cell: ({ row }) => {
       const status = row.original.status;
-      let variant: any = "outline";
+      let variant: "outline" | "default" | "secondary" = "outline";
       if (status === "Signed") variant = "default";
       if (status === "Draft") variant = "secondary";
       return <Badge variant={variant}>{status}</Badge>;

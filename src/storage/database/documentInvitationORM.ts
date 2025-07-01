@@ -184,4 +184,54 @@ export class DocumentInvitationORM {
       return null;
     }
   }
+
+  /**
+   * Получить все документы, где пользователь либо создатель, либо приглашён как подписывающий
+   */
+  async getDocumentsByWalletAddress(walletAddress: string): Promise<Document[]> {
+    try {
+      // Получаем документы, где пользователь — создатель
+      const { data: createdDocs, error: createdError } = await this.supabase
+        .from('documents')
+        .select('*')
+        .eq('creator_address', walletAddress);
+      if (createdError) {
+        console.error('Ошибка получения документов, созданных пользователем:', createdError);
+        return [];
+      }
+
+      // Получаем приглашения, где пользователь — подписывающий
+      const { data: invitations, error: invError } = await this.supabase
+        .from('invitations')
+        .select('document_id')
+        .eq('wallet_address', walletAddress);
+      if (invError) {
+        console.error('Ошибка получения приглашений пользователя:', invError);
+        return createdDocs as Document[];
+      }
+      const invitedDocIds = (invitations as { document_id: number }[]).map(i => i.document_id);
+
+      // Получаем документы, где пользователь приглашён
+      let invitedDocs: Document[] = [];
+      if (invitedDocIds.length > 0) {
+        const { data: docs, error: docsError } = await this.supabase
+          .from('documents')
+          .select('*')
+          .in('id', invitedDocIds);
+        if (docsError) {
+          console.error('Ошибка получения документов по приглашениям:', docsError);
+        } else {
+          invitedDocs = docs as Document[];
+        }
+      }
+
+      // Объединяем и убираем дубли
+      const allDocs = [...(createdDocs as Document[]), ...invitedDocs];
+      const uniqueDocs = allDocs.filter((doc, idx, arr) => arr.findIndex(d => d.id === doc.id) === idx);
+      return uniqueDocs;
+    } catch (error) {
+      console.error('Неожиданная ошибка при получении документов пользователя:', error);
+      return [];
+    }
+  }
 } 
