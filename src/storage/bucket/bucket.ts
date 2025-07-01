@@ -38,7 +38,6 @@ export type BucketName = string;
  */
 export function getBucketName(is_public: boolean): BucketName {
   const bucketName = is_public ? process.env.OPEN_DOCS_BUCKET! : process.env.ENCRYPTED_DOCS_BUCKET!;
-  console.log(`Выбран бакет: ${bucketName} для is_public=${is_public}`);
   return bucketName;
 }
 
@@ -49,12 +48,7 @@ export function getBucketName(is_public: boolean): BucketName {
  * @param file File | Blob | Buffer
  * @returns {Promise<string | null>} Путь к файлу в бакете или null
  */
-export async function uploadFileToBucket(bucketName: BucketName, path: string, file: File | Blob | Buffer): Promise<string | null> {
-  console.log(`Попытка загрузки файла в бакет ${bucketName} по пути ${path}`);
-  console.log('Размер файла:', file instanceof File ? file.size : 'не File');
-  console.log('SUPABASE_URL:', process.env.SUPABASE_URL?.substring(0, 20) + '...');
-  console.log('SERVICE_ROLE_KEY длина:', process.env.SUPABASE_SERVICE_ROLE_KEY?.length);
-  
+export async function uploadFileToBucket(bucketName: BucketName, path: string, file: File | Blob | Buffer): Promise<string | null> {  
   const { data, error } = await supabaseAdmin.storage.from(bucketName).upload(path, file, {
     upsert: true,
   });
@@ -68,7 +62,6 @@ export async function uploadFileToBucket(bucketName: BucketName, path: string, f
     });
     return null;
   }
-  console.log('Файл успешно загружен:', data);
   return data?.path || null;
 }
 
@@ -91,15 +84,13 @@ export function getPublicUrlFromBucket(bucketName: BucketName, path: string): st
  * @returns {Promise<string | null>} Публичная ссылка или null
  */
 export async function uploadAndGetPublicUrl(bucketName: BucketName, path: string, file: File | Blob | Buffer): Promise<string | null> {
-  console.log('Начинаем uploadAndGetPublicUrl');
   const uploadedPath = await uploadFileToBucket(bucketName, path, file);
   if (!uploadedPath) {
     console.error('uploadFileToBucket вернул null');
     return null;
   }
-  console.log('Файл загружен, получаем публичную ссылку для пути:', uploadedPath);
+
   const publicUrl = getPublicUrlFromBucket(bucketName, uploadedPath);
-  console.log('Получена публичная ссылка:', publicUrl);
   return publicUrl;
 }
 
