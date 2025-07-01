@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useWallet } from "@/components/WalletProvider";
-import { PKPSetup } from "@/components/PKPSetup";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -17,21 +16,25 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useRouter } from "next/navigation";
 import { hashBinaryWithEthers } from "@/lib/utils";
+import {
+  encryptFile,
+  generateAESKey,
+  createBlobFromDecrypted,
+} from "@/cryptography/aes";
 
 export default function CreateDocumentPage() {
-  const { account, pkpInfo, refreshAuthSig } = useWallet();
+  const { account } = useWallet();
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [signers, setSigners] = useState<string[]>([]);
   const [isPublic, setIsPublic] = useState(false);
-  // const [readOnly, setReadOnly] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState<null | React.FormEvent>(
     null
   );
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
+  // const [createError, setCreateError] = useState<string | null>(null);
 
   const router = useRouter();
 
@@ -91,6 +94,7 @@ export default function CreateDocumentPage() {
 
   const createDocument = async () => {
     if (!file || !account) return;
+    setIsCreating(true);
 
     const reader = new FileReader();
     reader.onload = async (event) => {
@@ -107,11 +111,36 @@ export default function CreateDocumentPage() {
 
       // Добавляем логику для !isPublic
       if (!isPublic) {
-        console.log("Документ приватный, файл будет изменён перед отправкой.");
-        //TODO Здесь в будущем файл будет заменяться на другой файл
-        formData.set("file", file); // Пока что просто перезаписываем тот же файл
+        const aesKey = generateAESKey();
+        try {
+          const encryptedFileResult = await encryptFile(file, aesKey);
+          if (!encryptedFileResult.success || !encryptedFileResult.data) {
+            throw new Error(
+              encryptedFileResult.error || "Failed to encrypt file."
+            );
+          }
+          const encryptedBlob = createBlobFromDecrypted(
+            encryptedFileResult.data,
+            file.type
+          );
+          formData.set("file", encryptedBlob);
+
+          const tokenId = localStorage.getItem("userTokenId");
+          if (tokenId === null) throw new Error();
+
+          // const encryptedForOwner = await litECIES.encrypt(aesKey, tokenId);
+          // if (encryptedForOwner === undefined) {
+          //   throw new Error("Encrypted AES key for creator is undefined.");
+          // }
+          // console.log(encryptedForOwner);
+          // formData.set("encrypted_aes_key_for_creator", encryptedForOwner);
+        } catch (error) {
+          console.error("Encryption failed:", error);
+          alert("Ошибка шифрования файла.");
+          setIsCreating(false);
+          return; // Stop execution if encryption fails
+        }
       }
-      // Пока что игнорируем это для упрощения
 
       try {
         const response = await fetch("/api/document", {
@@ -133,6 +162,7 @@ export default function CreateDocumentPage() {
       }
     };
     reader.readAsArrayBuffer(file);
+    setIsCreating(false);
   };
 
   const handleDialogConfirm = async () => {
@@ -148,23 +178,6 @@ export default function CreateDocumentPage() {
     setPendingSubmit(null);
   };
 
-  // Показываем PKP Setup если PKP не создан
-  if (!pkpInfo) {
-    return (
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">Create a new document</h1>
-        <PKPSetup />
-        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
-          <p className="text-sm text-blue-800">
-            <strong>Необходимо создать PKP:</strong> Для безопасного шифрования
-            документов требуется создать Programmable Key Pair. Это позволит
-            шифровать документы без раскрытия вашего приватного ключа MetaMask.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col md:flex-row gap-6 max-w-full">
       <form
@@ -173,11 +186,11 @@ export default function CreateDocumentPage() {
       >
         <h1 className="text-2xl font-bold mb-4">Create a new document</h1>
 
-        {createError && (
+        {/* {createError && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-md">
             <p className="text-sm text-red-800">{createError}</p>
           </div>
-        )}
+        )} */}
         <div>
           <label className="block mb-1 font-medium">Document name</label>
           <Input
