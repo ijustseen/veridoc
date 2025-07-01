@@ -63,6 +63,10 @@ export default function DocumentDetailPage({
   }, [id]);
 
   React.useEffect(() => {
+    if (document?.is_encrypted === true) {
+      //TODO: decrypt document if user is signer
+    }
+
     if (document?.file_url) {
       setPdfPreviewUrl(document.file_url);
     } else {

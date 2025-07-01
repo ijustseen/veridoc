@@ -22,7 +22,7 @@ export default function CreateDocumentPage() {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [signers, setSigners] = useState<string[]>([]);
-  const [isPrivate, setIsPrivate] = useState(true);
+  const [isPublic, setIsPublic] = useState(false);
   // const [readOnly, setReadOnly] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState<null | React.FormEvent>(
@@ -100,9 +100,14 @@ export default function CreateDocumentPage() {
       formData.append("title", title);
       formData.append("hash", fileHash);
       formData.append("creator_address", account);
-      formData.append("is_public", String(!isPrivate));
+      formData.append("is_public", String(isPublic));
 
-      // TODO: Добавить логику для encrypted_aes_key_for_creator, если isPrivate
+      // Добавляем логику для !isPublic
+      if (!isPublic) {
+        console.log("Документ приватный, файл будет изменён перед отправкой.");
+        //TODO Здесь в будущем файл будет заменяться на другой файл
+        formData.set("file", file); // Пока что просто перезаписываем тот же файл
+      }
       // Пока что игнорируем это для упрощения
 
       try {
@@ -165,8 +170,8 @@ export default function CreateDocumentPage() {
               <input
                 type="radio"
                 name="docType"
-                checked={isPrivate}
-                onChange={() => setIsPrivate(true)}
+                checked={!isPublic}
+                onChange={() => setIsPublic(false)}
                 // disabled
               />
               Private
@@ -175,8 +180,8 @@ export default function CreateDocumentPage() {
               <input
                 type="radio"
                 name="docType"
-                checked={!isPrivate}
-                onChange={() => setIsPrivate(false)}
+                checked={isPublic}
+                onChange={() => setIsPublic(true)}
                 // disabled
               />
               Public
