@@ -16,7 +16,6 @@ export async function GET(req: NextRequest) {
   const walletAddress = req.nextUrl.searchParams.get('wallet_address');
   const docId = req.nextUrl.searchParams.get('document_id');
   
-  // Если указаны и document_id и wallet_address, возвращаем конкретное приглашение
   if (docId && (wallet || walletAddress)) {
     const address = wallet || walletAddress;
     const invitations = await orm.getInvitationsByDocumentId(Number(docId));
@@ -27,7 +26,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(specificInvitation);
   }
   
-  // Остальная логика как раньше
   if (wallet || walletAddress) {
     const address = wallet || walletAddress;
     const data = await orm.getInvitationsByWalletAddress(address!);
