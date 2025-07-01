@@ -18,45 +18,86 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { documents, Document } from "@/lib/documentsData";
+import { Document } from "@/storage/database/types";
+import { useWallet } from "@/components/WalletProvider";
 
 // Описание колонок для таблицы
 const columns: ColumnDef<Document>[] = [
   {
-    accessorKey: "name",
-    header: "Name",
+    accessorKey: "title",
+    header: "Title",
     cell: ({ row }) => (
-      <span className="text-primary">{row.original.name}</span>
+      <span className="text-primary">{row.original.title}</span>
     ),
   },
   {
-    accessorKey: "signatures",
-    header: "Signatures",
+    accessorKey: "creator_address",
+    header: "Creator Address",
   },
   {
-    accessorKey: "status",
-    header: "Status",
+    accessorKey: "created_at",
+    header: "Created At",
     cell: ({ row }) => {
-      const status = row.original.status;
-      let variant: "outline" | "default" | "secondary" = "outline";
-      if (status === "Signed") variant = "default";
-      if (status === "Draft") variant = "secondary";
-      return <Badge variant={variant}>{status}</Badge>;
+      const date = new Date(row.original.created_at);
+      return date.toLocaleDateString();
+    },
+  },
+  {
+    accessorKey: "status", // This field doesn't exist in Document, will be removed or updated later
+    header: "Status",
+    cell: () => {
+      // Logic for status might need to be re-evaluated
+      // For now, let's just display a placeholder or derive from invitations
+      return <Badge variant="outline">N/A</Badge>;
     },
   },
 ];
 
 export default function DocumentsPage() {
   const [search, setSearch] = React.useState("");
+  const [documents, setDocuments] = React.useState<Document[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
   const router = useRouter();
+  const { account, isInitialLoading } = useWallet();
+
+  React.useEffect(() => {
+    const fetchDocuments = async () => {
+      if (isInitialLoading || !account) {
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(`/api/document/list?wallet=${account}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data: Document[] = await response.json();
+        setDocuments(data);
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("An unknown error occurred");
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDocuments();
+  }, [account, isInitialLoading]);
 
   // Фильтрация документов по названию
   const filteredDocuments = React.useMemo(
     () =>
       documents.filter((doc) =>
-        doc.name.toLowerCase().includes(search.toLowerCase())
+        doc.title.toLowerCase().includes(search.toLowerCase())
       ),
-    [search]
+    [search, documents]
   );
 
   const table = useReactTable({
@@ -96,7 +137,25 @@ export default function DocumentsPage() {
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.length ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-48 text-center"
+                >
+                  Loading documents...
+                </TableCell>
+              </TableRow>
+            ) : error ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-48 text-center text-destructive"
+                >
+                  Error: {error}
+                </TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}

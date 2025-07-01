@@ -26,7 +26,6 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
-import { requests, Request } from "@/lib/requestsData";
 import {
   Select,
   SelectTrigger,
@@ -34,62 +33,107 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { useWallet } from "@/components/WalletProvider";
+import { InvitationWithDocument } from "@/storage/database/types";
 
-const columns: ColumnDef<Request>[] = [
+const columns: ColumnDef<InvitationWithDocument>[] = [
   {
-    accessorKey: "documentName",
+    accessorKey: "documents.title",
     header: "Document",
-    cell: ({ row }: { row: Row<Request> }) => (
-      <span className="text-primary">{row.original.documentName}</span>
+    cell: ({ row }: { row: Row<InvitationWithDocument> }) => (
+      <span className="text-primary">{row.original.documents.title}</span>
     ),
   },
   {
-    accessorKey: "from",
+    accessorKey: "documents.creator_address",
     header: "Sender",
   },
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }: { row: Row<Request> }) => {
+    cell: ({ row }: { row: Row<InvitationWithDocument> }) => {
       const status = row.original.status;
       let variant: "default" | "secondary" | "destructive" | "outline" =
         "outline";
-      if (status === "Accepted") variant = "default";
-      if (status === "Declined") variant = "destructive";
-      if (status === "Pending") variant = "secondary";
+      if (status === "signed") variant = "default";
+      if (status === "ready") variant = "default";
+      if (status === "pending" || status === "key_provided")
+        variant = "secondary";
       return <Badge variant={variant}>{status}</Badge>;
     },
   },
   {
-    accessorKey: "date",
+    accessorKey: "created_at",
     header: "Date",
+    cell: ({ row }: { row: Row<InvitationWithDocument> }) => {
+      const date = new Date(row.original.created_at);
+      return date.toLocaleDateString();
+    },
   },
 ];
 
 export default function RequestsPage() {
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("");
+  const [invitations, setInvitations] = React.useState<
+    InvitationWithDocument[]
+  >([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const router = useRouter();
+  const { account, isInitialLoading } = useWallet();
+
+  React.useEffect(() => {
+    async function fetchInvitations() {
+      if (!account || isInitialLoading) {
+        setIsLoading(true);
+        return;
+      }
+      try {
+        const response = await fetch(`/api/invitation?wallet=${account}`);
+        if (!response.ok) {
+          throw new Error("Failed to fetch invitations");
+        }
+        const data = await response.json();
+        setInvitations(data);
+      } catch (error) {
+        console.error("Error fetching invitations:", error);
+        setInvitations([]);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchInvitations();
+  }, [account, isInitialLoading]);
 
   // Pending requests for cards
-  const pendingRequests = requests.filter((req) => req.status === "Pending");
+  const pendingRequests = invitations.filter(
+    (req) => req.status === "pending" || req.status === "key_provided"
+  );
   // Requests for table (not pending)
   const filteredRequests = React.useMemo(
     () =>
-      requests.filter(
+      invitations.filter(
         (req) =>
-          req.status !== "Pending" &&
-          req.documentName.toLowerCase().includes(search.toLowerCase()) &&
+          (req.status === "signed" || req.status === "ready") &&
+          req.documents.title.toLowerCase().includes(search.toLowerCase()) &&
           (statusFilter ? req.status === statusFilter : true)
       ),
-    [search, statusFilter]
+    [search, statusFilter, invitations]
   );
 
-  const table = useReactTable<Request>({
+  const table = useReactTable<InvitationWithDocument>({
     data: filteredRequests,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-48">
+        <p className="text-muted-foreground">Loading invitations...</p>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -99,20 +143,26 @@ export default function RequestsPage() {
           {pendingRequests.map((req) => (
             <Card key={req.id}>
               <CardHeader>
-                <CardTitle>{req.documentName}</CardTitle>
+                <CardTitle>{req.documents.title}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="mb-2 text-sm text-muted-foreground">
-                  <span className="font-medium">Sender:</span> {req.from}
+                  <span className="font-medium">Sender:</span>{" "}
+                  {req.documents.creator_address}
                 </div>
                 <div className="mb-2 text-sm text-muted-foreground">
-                  <span className="font-medium">Date:</span> {req.date}
+                  <span className="font-medium">Date:</span>{" "}
+                  {new Date(req.created_at).toLocaleDateString()}
                 </div>
-                <Badge variant="secondary">Pending</Badge>
+                <Badge variant="secondary">
+                  {req.status === "pending" ? "Pending" : "Key Provided"}
+                </Badge>
               </CardContent>
               <CardFooter>
                 <Button
-                  onClick={() => router.push(`/documents/${req.id}/sign`)}
+                  onClick={() =>
+                    router.push(`/documents/${req.documents.id}/sign`)
+                  }
                 >
                   Go to document
                 </Button>
@@ -137,8 +187,8 @@ export default function RequestsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All</SelectItem>
-            <SelectItem value="Accepted">Accepted</SelectItem>
-            <SelectItem value="Declined">Declined</SelectItem>
+            <SelectItem value="signed">Signed</SelectItem>
+            <SelectItem value="ready">Ready</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -166,10 +216,12 @@ export default function RequestsPage() {
                   className="cursor-pointer hover:bg-accent/40 transition-colors"
                   tabIndex={0}
                   role="button"
-                  onClick={() => router.push(`/documents/${row.original.id}`)}
+                  onClick={() =>
+                    router.push(`/documents/${row.original.documents.id}`)
+                  }
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
-                      router.push(`/documents/${row.original.id}`);
+                      router.push(`/documents/${row.original.documents.id}`);
                     }
                   }}
                 >

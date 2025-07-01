@@ -16,19 +16,19 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { useRouter } from "next/navigation";
-import { generateAESKey, encryptFile } from "@/cryptography/aes";
-import { hashFile } from "@/cryptography/hash";
-import { encryptAESKeyForDocument } from "@/cryptography/lit-encryption";
-import { getBlockchainService } from "@/lib/blockchain";
+import { hashBinaryWithEthers } from "@/lib/utils";
 
 export default function CreateDocumentPage() {
   const { account, pkpInfo, refreshAuthSig } = useWallet();
   const [file, setFile] = useState<File | null>(null);
-  const [fileName, setFileName] = useState("");
+  const [title, setTitle] = useState("");
   const [signers, setSigners] = useState<string[]>([]);
-  const [isPrivate, setIsPrivate] = useState(true);
+  const [isPublic, setIsPublic] = useState(false);
+  // const [readOnly, setReadOnly] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
-  const [pendingSubmit, setPendingSubmit] = useState<null | React.FormEvent>(null);
+  const [pendingSubmit, setPendingSubmit] = useState<null | React.FormEvent>(
+    null
+  );
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -51,8 +51,11 @@ export default function CreateDocumentPage() {
       setFile(uploadedFile);
 
       // Extract file name without extension
-      const nameWithoutExtension = uploadedFile.name.replace(/\.[^/\.]+$/, "");
-      setFileName(nameWithoutExtension);
+      const nameWithoutExtension = uploadedFile.name.replace(
+        /\\.[^/\\.]+$/,
+        ""
+      );
+      setTitle(nameWithoutExtension);
     }
   };
 
@@ -70,17 +73,66 @@ export default function CreateDocumentPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('🔹 handleSubmit вызван');
-    
-    if (signers.filter(s => s.trim()).length > 0) {
-      console.log('🔹 Есть дополнительные подписанты, показываем диалог');
+
+    if (!file || !account) {
+      alert("Выберите файл и убедитесь, что ваш кошелек подключен.");
+      return;
+    }
+
+    if (signers.length > 0) {
       setPendingSubmit(e);
       setShowDialog(true);
       return;
     }
-    
-    console.log('🔹 Нет дополнительных подписантов, создаем документ сразу');
+
+    // Хеширование файла и отправка
     await createDocument();
+  };
+
+  const createDocument = async () => {
+    if (!file || !account) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const arrayBuffer = event.target?.result as ArrayBuffer;
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const fileHash = hashBinaryWithEthers(uint8Array);
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("title", title);
+      formData.append("hash", fileHash);
+      formData.append("creator_address", account);
+      formData.append("is_public", String(isPublic));
+
+      // Добавляем логику для !isPublic
+      if (!isPublic) {
+        console.log("Документ приватный, файл будет изменён перед отправкой.");
+        //TODO Здесь в будущем файл будет заменяться на другой файл
+        formData.set("file", file); // Пока что просто перезаписываем тот же файл
+      }
+      // Пока что игнорируем это для упрощения
+
+      try {
+        const response = await fetch("/api/document", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log("Документ успешно создан:", result);
+          router.push("/dashboard");
+        } else {
+          const errorData = await response.json();
+          alert(`Ошибка создания документа: ${errorData.error}`);
+        }
+      } catch (error) {
+        console.error("Ошибка при отправке документа:", error);
+        alert("Ошибка при отправке документа. Пожалуйста, попробуйте снова.");
+      }
+    };
+    reader.readAsArrayBuffer(file);
   };
 
   const handleDialogConfirm = async () => {
@@ -88,185 +140,6 @@ export default function CreateDocumentPage() {
     if (pendingSubmit) {
       await createDocument();
       setPendingSubmit(null);
-    }
-  };
-
-  const createDocument = async () => {
-    console.log('🔹 Начинаем создание документа...');
-    console.log('🔹 file:', !!file, 'account:', !!account, 'pkpInfo:', !!pkpInfo);
-    console.log('🔹 isPrivate:', isPrivate);
-    
-    if (!file || !account || !pkpInfo) {
-      console.error('❌ Отсутствуют необходимые данные:', { file: !!file, account: !!account, pkpInfo: !!pkpInfo });
-      setCreateError("Отсутствуют необходимые данные для создания документа");
-      return;
-    }
-
-    setIsCreating(true);
-    setCreateError(null);
-
-    try {
-      console.log('🔹 Генерируем AES ключ...');
-      const aesKey = generateAESKey();
-      
-      console.log('🔹 Вычисляем хеш файла...');
-      const fileHash = await hashFile(file);
-
-      // 4. Создаем документ в базе данных
-      const docFormData = new FormData();
-      
-      if (isPrivate) {
-        console.log('🔹 Приватный документ - шифруем файл...');
-        // Для приватных документов шифруем файл
-        const encryptedFileResult = await encryptFile(file, aesKey);
-        if (!encryptedFileResult.success) {
-          throw new Error(encryptedFileResult.error || 'Ошибка шифрования файла');
-        }
-        const encryptedBlob = new Blob([encryptedFileResult.data!], { type: 'application/octet-stream' });
-        docFormData.append('file', encryptedBlob, `encrypted_${fileName}.bin`);
-        docFormData.append('encrypted_aes_key_for_creator', aesKey);
-      } else {
-        console.log('🔹 Публичный документ - не шифруем...');
-        // Для публичных документов загружаем оригинальный файл
-        docFormData.append('file', file);
-      }
-      
-      docFormData.append('title', fileName);
-      docFormData.append('hash', fileHash);
-      docFormData.append('creator_address', account);
-      docFormData.append('is_public', (!isPrivate).toString());
-
-      const createDocResponse = await fetch('/api/document', {
-        method: 'POST',
-        body: docFormData,
-      });
-
-      if (!createDocResponse.ok) {
-        throw new Error('Ошибка создания документа');
-      }
-
-      const document = await createDocResponse.json();
-      console.log('🔹 Документ создан:', document);
-
-      // 5. Только для приватных документов - шифруем AES ключ с помощью Lit Protocol
-      if (isPrivate) {
-        console.log('🔹 Приватный документ - настраиваем шифрование...');
-        const allSigners = [account, ...signers.filter(s => s.trim())];
-        console.log('🔹 Все подписанты:', allSigners);
-        console.log('🔹 Количество подписантов:', allSigners.length);
-        
-        // Нужен authSig для шифрования
-        let currentAuthSig = pkpInfo.authSig;
-        if (!currentAuthSig) {
-          console.log('AuthSig недоступен, обновляем...');
-          currentAuthSig = await refreshAuthSig();
-          
-          // Проверяем что authSig создался
-          if (!currentAuthSig) {
-            throw new Error('Не удалось создать authSig для шифрования');
-          }
-        }
-        
-        console.log('🔹 Начинаем шифрование AES ключа...');
-        const encryptedKeyResult = await encryptAESKeyForDocument(aesKey, allSigners, currentAuthSig);
-        console.log('🔹 Результат шифрования ключа:', encryptedKeyResult);
-        
-        if (!encryptedKeyResult.success) {
-          console.error('❌ Ошибка шифрования ключа:', encryptedKeyResult.error);
-          throw new Error(encryptedKeyResult.error || 'Ошибка шифрования ключа');
-        }
-
-        // 6. Сохраняем зашифрованные данные
-        console.log('🔹 Отправляем данные в /api/encrypt...');
-        const encryptResponse = await fetch('/api/encrypt', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            data: aesKey,
-            documentId: document.id,
-            walletAddresses: allSigners,
-            authSig: currentAuthSig,
-          }),
-        });
-
-        console.log('🔹 Ответ от /api/encrypt:', encryptResponse.status, encryptResponse.statusText);
-        
-        if (!encryptResponse.ok) {
-          const errorText = await encryptResponse.text();
-          console.error('❌ Ошибка /api/encrypt:', errorText);
-          throw new Error('Ошибка сохранения зашифрованных данных');
-        }
-
-        const encryptResult = await encryptResponse.json();
-        console.log('🔹 Результат /api/encrypt:', encryptResult);
-      } else {
-        console.log('🔹 Публичный документ - пропускаем шифрование');
-      }
-
-      // 7. Создаем документ в блокчейне (Sepolia)
-      console.log('🔹 Создаем документ в блокчейне...');
-      const blockchainService = getBlockchainService();
-      const isInitialized = await blockchainService.initialize();
-      
-      if (isInitialized) {
-        const allSigners = signers.filter(s => s.trim());
-        const encryptedKeysForBlockchain = isPrivate ? new Array(allSigners.length).fill('') : [];
-        
-        const blockchainResult = await blockchainService.createDocument(
-          fileHash,
-          !isPrivate, // isPublic = !isPrivate
-          allSigners,
-          encryptedKeysForBlockchain
-        );
-        
-        if (blockchainResult.success) {
-          console.log('✅ Документ создан в блокчейне с ID:', blockchainResult.documentId);
-          console.log('🔗 Транзакция:', blockchainResult.txHash);
-          
-          // Сохраняем blockchain_id в базе данных
-          await fetch(`/api/document/${document.id}`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              blockchain_id: blockchainResult.documentId,
-              blockchain_tx: blockchainResult.txHash
-            }),
-          });
-        } else {
-          console.warn('⚠️ Не удалось создать документ в блокчейне:', blockchainResult.error);
-          // Продолжаем без блокчейна
-        }
-      } else {
-        console.warn('⚠️ Не удалось инициализировать блокчейн сервис');
-      }
-
-      // 8. Создаем приглашения для подписантов
-      for (const signerAddress of signers.filter(s => s.trim())) {
-        await fetch('/api/invitation', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            document_id: document.id,
-            wallet_address: signerAddress,
-            status: 'pending',
-          }),
-        });
-      }
-
-      console.log('✅ Документ полностью создан!');
-      router.push("/dashboard");
-
-    } catch (error) {
-      console.error('Ошибка создания документа:', error);
-      setCreateError(error instanceof Error ? error.message : 'Неизвестная ошибка');
-    } finally {
-      setIsCreating(false);
     }
   };
 
@@ -283,9 +156,9 @@ export default function CreateDocumentPage() {
         <PKPSetup />
         <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
           <p className="text-sm text-blue-800">
-            <strong>Необходимо создать PKP:</strong> Для безопасного шифрования документов 
-            требуется создать Programmable Key Pair. Это позволит шифровать документы 
-            без раскрытия вашего приватного ключа MetaMask.
+            <strong>Необходимо создать PKP:</strong> Для безопасного шифрования
+            документов требуется создать Programmable Key Pair. Это позволит
+            шифровать документы без раскрытия вашего приватного ключа MetaMask.
           </p>
         </div>
       </div>
@@ -299,7 +172,7 @@ export default function CreateDocumentPage() {
         className="space-y-6 flex-1 max-w-xl md:max-w-none flex flex-col"
       >
         <h1 className="text-2xl font-bold mb-4">Create a new document</h1>
-        
+
         {createError && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-md">
             <p className="text-sm text-red-800">{createError}</p>
@@ -310,10 +183,10 @@ export default function CreateDocumentPage() {
           <Input
             type="text"
             placeholder="Enter document name"
-            value={fileName}
-            onChange={(e) => setFileName(e.target.value)}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
             required
-            readOnly
+            // readOnly
           />
         </div>
         <div>
@@ -323,11 +196,9 @@ export default function CreateDocumentPage() {
               <input
                 type="radio"
                 name="docType"
-                checked={isPrivate}
-                onChange={() => {
-                  console.log('🔹 Переключили на Private');
-                  setIsPrivate(true);
-                }}
+                checked={!isPublic}
+                onChange={() => setIsPublic(false)}
+                // disabled
               />
               Private
             </label>
@@ -335,11 +206,9 @@ export default function CreateDocumentPage() {
               <input
                 type="radio"
                 name="docType"
-                checked={!isPrivate}
-                onChange={() => {
-                  console.log('🔹 Переключили на Public');
-                  setIsPrivate(false);
-                }}
+                checked={isPublic}
+                onChange={() => setIsPublic(true)}
+                // disabled
               />
               Public
             </label>

@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useWallet } from "@/components/WalletProvider";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -39,7 +39,7 @@ export default function AppContainer({
         error={error}
         connectWallet={connectWallet}
       />
-      <main className="flex-grow">{children}</main>
+      <main className="flex-grow flex flex-col">{children}</main>
       <Footer />
     </div>
   );
